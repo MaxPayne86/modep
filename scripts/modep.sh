@@ -30,41 +30,15 @@ install_pisound() {
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_SRC_DIR
-	set -e
-	if [ ! -d "pisound" ]; then
-		echo "Cloning pisound repository from https://github.com/BlokasLabs/pisound..."
-		git clone https://github.com/BlokasLabs/pisound.git
-		cd pisound
+	
+	OVERLAY_LOADED=`find /proc/device-tree/ 2> /dev/null | grep fe-pi-audio | head -1`
+	if [ -z $OVERLAY_LOADED ]; then
+		echo "Loading fe-pi-audio overlays dynamically!"
+		dtoverlay fe-pi-audio
+		dtoverlay i2s-mmap
 	else
-		echo "Updating pisound repository with latest stuff in https://github.com/BlokasLabs/pisound..."
-		cd pisound
-		git pull
+		echo "fe-pi-audio overlay is already loaded!"
 	fi
-	echo
-	chmod +x enable-pisound.sh
-	chmod +x disable-pisound.sh
-	cd pisound-btn
-	make
-	sudo make install
-	sudo ../enable-pisound.sh
-	set +e
-	PISOUND_OVERLAY_LOADED=`find /proc/device-tree/ 2> /dev/null | grep pisound | head -1`
-	if [ -z $PISOUND_OVERLAY_LOADED ]; then
-		echo "Loading pisound overlays dynamically!"
-		sudo dtoverlay pisound
-		sudo dtoverlay i2s-mmap
-	else
-		echo "pisound overlay is already loaded!"
-	fi
-	echo "setting pisound as the default audio device"
-	if grep -q 'pcm.!default' ~/.asoundrc; then
-		sed -i '/pcm.!default\|ctl.!default/,/}/ { s/type .*/type hw/g; s/card .*/card 1/g; }' ~/.asoundrc
-	else
-		printf 'pcm.!default {\n\ttype hw\n\tcard 1\n}\n\nctl.!default {\n\ttype hw\n\tcard 1\n}\n' >> ~/.asoundrc
-	fi
-	for btn in `ps -C btn --no-headers | awk '{print $1;}'`; do
-		kill $btn > /dev/null
-	done
 	if [ -z "$1" ]; then
 		echo
 		read -n 1 -p "Press any key to continue.."
@@ -77,25 +51,25 @@ install_hotspot() {
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_SRC_DIR
-	sudo apt-get install -y dnsmasq hostapd
+	echo "apt-get install -y dnsmasq hostapd"
 	if [ -z "$1" ]; then
 		echo
 		read -n 1 -p "Press any key to continue.."
 	fi
-}	
+}
 
 install_touchosc() {
 	echo
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_SRC_DIR
-	sudo apt-get install -y python-pip python-setuptools libpython2.7-dev liblo-dev
-	sudo easy_install --upgrade pip
-	sudo pip install pgen
-	sudo pip install Cython --install-option="--no-cython-compile"
-	sudo pip install netifaces
-	sudo pip install enum-compat
-	sudo pip install touchosc2midi
+	apt-get install -y python-pip python-setuptools libpython2.7-dev liblo-dev
+	easy_install --upgrade pip
+	pip install pgen
+	pip install Cython --install-option="--no-cython-compile"
+	pip install netifaces
+	pip install enum-compat
+	pip install touchosc2midi
 	if [ -z "$1" ]; then
 		echo
 		read -n 1 -p "Press any key to continue.."
@@ -107,27 +81,7 @@ install_jack() {
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_SRC_DIR
-	sudo apt-get install -y libasound2-dev libsndfile1-dev libreadline-dev libreadline6-dev libtinfo-dev
-	git clone https://github.com/jackaudio/jack2.git --depth 1
-	cd jack2
-	./waf configure
-	./waf build
-	sudo ./waf install
-	sudo ldconfig
-	cd ..
-	echo
-	if grep -q '@audio - memlock 256000' /etc/security/limits.conf; then
-		echo "memlock already set"
-	else
-		sudo sh -c "echo @audio - memlock 256000 >> /etc/security/limits.conf"
-		echo "setting memlock"
-	fi
-	if grep -q '@audio - rtprio 75' /etc/security/limits.conf; then
-		echo "rtprio already set"
-	else
-		sudo sh -c "echo @audio - rtprio 75 >> /etc/security/limits.conf"
-		echo "setting rtprio"
-	fi
+	echo "apt-get install -y libasound2-dev libsndfile1-dev libreadline-dev libreadline6-dev libtinfo-dev"
 	if [ -z "$1" ]; then
 		echo
 		read -n 1 -p "Press any key to continue.."
@@ -190,11 +144,11 @@ install_modhost() {
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_SRC_DIR
-	sudo apt-get install -y libreadline-dev
+	apt-get install -y libreadline-dev
 	git clone https://github.com/BlokasLabs/mod-host.git
 	cd mod-host
 	make -j 4
-	sudo make install
+	make install
 	make clean
 	if [ -z "$1" ]; then
 		echo
@@ -207,10 +161,10 @@ install_modui() {
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_DIR
-	sudo apt-get install -y python3-pip
+	apt-get install -y python3-pip
 	git clone --recursive https://github.com/BlokasLabs/mod-ui.git
 	cd mod-ui
-	sudo pip3 install -r requirements.txt
+	pip3 install -r requirements.txt
 	cd utils
 	make
 	if [ -z "$1" ]; then
@@ -231,38 +185,38 @@ install_plugins() {
 	echo "$FUNCNAME started"
 	echo
 	echo "installing MOD CAPS suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/mod-caps.sh
+	chmod +x $MODEP_DIR/scripts/plugins/mod-caps.sh
 	$MODEP_DIR/scripts/plugins/mod-caps.sh
 	echo
 	echo "installing MOD MDA suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/mod-mda.sh
+	chmod +x $MODEP_DIR/scripts/plugins/mod-mda.sh
 	$MODEP_DIR/scripts/plugins/mod-mda.sh
 	echo
 	echo "installing MOD TAP suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/mod-tap.sh
+	chmod +x $MODEP_DIR/scripts/plugins/mod-tap.sh
 	$MODEP_DIR/scripts/plugins/mod-tap.sh
 	echo
 	echo "installing Midifilter suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/midifilter.sh
+	chmod +x $MODEP_DIR/scripts/plugins/midifilter.sh
 	$MODEP_DIR/scripts/plugins/midifilter.sh
 	echo
 	echo "installing MOD Distortion suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/mod-distortion.sh
+	chmod +x $MODEP_DIR/scripts/plugins/mod-distortion.sh
 	$MODEP_DIR/scripts/plugins/mod-distortion.sh	
 	echo
 	echo "installing MOD Utilities suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/mod-utilities.sh
+	chmod +x $MODEP_DIR/scripts/plugins/mod-utilities.sh
 	$MODEP_DIR/scripts/plugins/mod-utilities.sh
 	echo
 	echo "installing Freaked suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/freaked.sh
+	chmod +x $MODEP_DIR/scripts/plugins/freaked.sh
 	$MODEP_DIR/scripts/plugins/freaked.sh
 	echo
 	echo "installing FluidPlug suite.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/fluid.sh
+	chmod +x $MODEP_DIR/scripts/plugins/fluid.sh
 	$MODEP_DIR/scripts/plugins/fluid.sh	
 	echo "installing other plugins.."
-	sudo chmod +x $MODEP_DIR/scripts/plugins/random-plugins.sh
+	chmod +x $MODEP_DIR/scripts/plugins/random-plugins.sh
 	$MODEP_DIR/scripts/plugins/random-plugins.sh
 	if [ -z "$1" ]; then
 		echo
@@ -275,9 +229,8 @@ install_pisoundbtn() {
 	echo
 	echo "$FUNCNAME started"
 	echo
-	sudo chmod +x $MODEP_DIR/scripts/install-pisound-btn-scripts.sh
-	sudo $MODEP_DIR/scripts/install-pisound-btn-scripts.sh
-	echo
+	echo "chmod +x $MODEP_DIR/scripts/install-pisound-btn-scripts.sh"
+	echo "$MODEP_DIR/scripts/install-pisound-btn-scripts.sh"
 	if [ -z "$1" ]; then
 		echo
 		read -n 1 -p "Press any key to continue.."
@@ -289,7 +242,7 @@ install_phantomjs() {
 	echo "$FUNCNAME started"
 	echo
 	cd $MODEP_SRC_DIR
-	sudo apt-get install -y libfontconfig1
+	apt-get install -y libfontconfig1
 	if [ ! -d "phantomjs-on-raspberry" ]; then
 		echo "Cloning repository..."
 		git clone https://github.com/fg2it/phantomjs-on-raspberry.git
@@ -299,7 +252,7 @@ install_phantomjs() {
 		git pull
 		cd ..
 	fi
-	sudo /bin/cp -rf $MODEP_SRC_DIR/phantomjs-on-raspberry/rpi-2-3/wheezy-jessie/v2.1.1/phantomjs /usr/local/bin/phantomjs
+	/bin/cp -rf $MODEP_SRC_DIR/phantomjs-on-raspberry/rpi-2-3/wheezy-jessie/v2.1.1/phantomjs /usr/local/bin/phantomjs
 	if [ -z "$1" ]; then
 		echo
 		read -n 1 -p "Press any key to continue.."
@@ -308,7 +261,7 @@ install_phantomjs() {
 
 install_all() {
 	if [ -z "$1" ]; then
-		if (whiptail --title "MOD Emulator for Pisound" --yesno "Ar you ready? It can take more than 40 minutes." $WT_HEIGHT $WT_WIDTH --fullbuttons); then
+		if (whiptail --title "MOD Emulator for fe-pi-audio" --yesno "Ar you ready? It can take more than 40 minutes." $WT_HEIGHT $WT_WIDTH --fullbuttons); then
 	    	:
 		else
 			return 0
@@ -521,17 +474,17 @@ restore_modep_data() {
 	echo
 	echo "$FUNCNAME started"
 	if [ ! -d "$MODEP_DIR/mod-ui/dados/" ]; then
-		sudo mkdir $MODEP_DIR/mod-ui/dados/
+		mkdir $MODEP_DIR/mod-ui/dados/
 	fi
-	sudo /bin/cp -rf $MODEP_DIR/data/banks.json $MODEP_DIR/mod-ui/dados/banks.json
+	/bin/cp -rf $MODEP_DIR/data/banks.json $MODEP_DIR/mod-ui/dados/banks.json
 	echo "cp banks.json"
 	if [ ! -d "$MODEP_DIR/.pedalboards/" ]; then
-		sudo mkdir $MODEP_DIR/.pedalboards/
+		mkdir $MODEP_DIR/.pedalboards/
 	fi
-	sudo /bin/cp -rf $MODEP_DIR/data/pedalboards/* $MODEP_DIR/.pedalboards/
+	/bin/cp -rf $MODEP_DIR/data/pedalboards/* $MODEP_DIR/.pedalboards/
 	echo "cp pedalboards"
 	if [ $(systemctl is-enabled mod-ui) = "enabled" ]; then
-		sudo  systemctl restart mod-ui
+		systemctl restart mod-ui
 	fi
 	if [ -z "$1" ]; then
 		echo
